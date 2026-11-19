@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="ru" data-theme="night-bar">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>truskadurak — приватный видеочат на двоих</title>
+    <meta name="description" content="Приватный P2P видеочат строго для двух человек для совместных посиделок онлайн с пивным PIN-ящиком, виртуальными фонами и AR-играми." />
+    <meta property="og:title" content="truskadurak — приватный видеочат на двоих" />
+    <meta property="og:description" content="Приватный P2P видеочат строго для двух человек для совместных посиделок онлайн." />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Manrope:wght@400;500;600;700&family=Rubik:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/themes.css" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  </head>
+  <body>
+    <div class="ambient-bg" aria-hidden="true"></div>
+
+    <!-- =========================================================
+         ЭКРАН 1: ВХОД «ЯЩИК ПИВА» (PIN-КОД)
+         ========================================================= -->
+    <main id="screen-pin" class="screen screen--active" aria-label="Вход по PIN-коду">
+      <header class="top-bar">
+        <div class="brand-wordmark">truskadurak</div>
+        <div class="theme-switcher" role="group" aria-label="Выбор темы">
+          <button type="button" class="theme-btn" data-theme-select="night-bar">Ночной бар</button>
+          <button type="button" class="theme-btn" data-theme-select="cyberpunk">Киберпанк</button>
+          <button type="button" class="theme-btn" data-theme-select="skype-2010">Skype 2010</button>
+        </div>
+        <button type="button" id="btn-pin-settings" class="btn btn--ghost">Настройки TURN</button>
+      </header>
+
+      <section class="pin-stage">
+        <div class="pin-intro">
+          <h1 class="display-title">Открой ящик — зайди за стол</h1>
+          <p class="subtitle">
+            Нажмите 4 банки, чтобы собрать PIN-код комнаты. Строго два места за столом.
+          </p>
+        </div>
+
+        <div class="pin-display" id="pin-display" aria-live="polite" aria-label="Введённый PIN-код">
+          <div class="pin-slot" data-slot="0"></div>
+          <div class="pin-slot" data-slot="1"></div>
+          <div class="pin-slot" data-slot="2"></div>
+          <div class="pin-slot" data-slot="3"></div>
+        </div>
+
+        <div class="beer-crate-wrap">
+          <div class="beer-crate" id="beer-crate" role="group" aria-label="Ящик с 9 банками пива">
+            <div class="crate-handle crate-handle--top" aria-hidden="true"></div>
+            <div class="crate-grid" id="crate-grid">
+              <!-- Банки 1–9 генерируются через js/ui.js -->
+            </div>
+            <div class="crate-handle crate-handle--bottom" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="pin-actions">
+          <button type="button" id="btn-pin-backspace" class="btn btn--secondary">Стереть</button>
+          <button type="button" id="btn-pin-reset" class="btn btn--secondary">Сбросить</button>
+        </div>
+
+        <p class="pin-hint" id="pin-status-hint">
+          Первый вошедший занимает место хоста, второй подключается к нему по тому же PIN.
+        </p>
+      </section>
+    </main>
+
+    <!-- =========================================================
+         ЭКРАН 2: КОМНАТА ЗАПОЛНЕНА (ТРЕТИЙ ЛИШНИЙ)
+         ========================================================= -->
+    <main id="screen-locked" class="screen" aria-label="Комната занята">
+      <header class="top-bar">
+        <div class="brand-wordmark">truskadurak</div>
+        <div class="theme-switcher" role="group" aria-label="Выбор темы">
+          <button type="button" class="theme-btn" data-theme-select="night-bar">Ночной бар</button>
+          <button type="button" class="theme-btn" data-theme-select="cyberpunk">Киберпанк</button>
+          <button type="button" class="theme-btn" data-theme-select="skype-2010">Skype 2010</button>
+        </div>
+        <div class="top-bar-spacer"></div>
+      </header>
+
+      <section class="center-panel">
+        <div class="locked-card surface-card">
+          <div class="locked-icon" aria-hidden="true">📦</div>
+          <h1 class="section-title">Ящик пуст, все места за столом заняты</h1>
+          <p class="muted-text">
+            В комнате с PIN <strong id="locked-pin-label" class="mono-num">----</strong> уже сидят два собеседника.
+            Попробуйте другой 4-значный PIN-код.
+          </p>
+          <button type="button" id="btn-locked-back" class="btn btn--primary">Ввести другой PIN</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- =========================================================
+         ЭКРАН 3: ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ (ПЕРВЫЙ ВХОД)
+         ========================================================= -->
+    <main id="screen-profile" class="screen" aria-label="Настройка профиля">
+      <header class="top-bar">
+        <div class="brand-wordmark">truskadurak</div>
+        <div class="theme-switcher" role="group" aria-label="Выбор темы">
+          <button type="button" class="theme-btn" data-theme-select="night-bar">Ночной бар</button>
+          <button type="button" class="theme-btn" data-theme-select="cyberpunk">Киберпанк</button>
+          <button type="button" class="theme-btn" data-theme-select="skype-2010">Skype 2010</button>
+        </div>
+        <button type="button" id="btn-profile-back" class="btn btn--ghost">Назад к PIN</button>
+      </header>
+
+      <section class="center-panel">
+        <form id="profile-form" class="profile-card surface-card" novalidate>
+          <h1 class="section-title">Представьтесь за столом</h1>
+          <p class="muted-text">Имя и аватар сохранятся на этом устройстве.</p>
+
+          <div class="field-group">
+            <label for="profile-name-input" class="field-label">Ваше имя</label>
+            <input
+              id="profile-name-input"
+              type="text"
+              class="text-input"
+              maxlength="20"
+              placeholder="Например, Серёга"
+              autocomplete="nickname"
+              required
+            />
+          </div>
+
+          <div class="field-group">
+            <span class="field-label">Выберите аватар</span>
+            <div class="avatar-grid" id="avatar-grid" role="radiogroup" aria-label="Аватар">
+              <!-- Эмодзи генерируются через js/ui.js -->
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary btn--full">Войти в комнату</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <!-- =========================================================
+         ЭКРАН 4: ЛОББИ (КАРТОЧКИ УЧАСТНИКОВ)
+         ========================================================= -->
+    <main id="screen-lobby" class="screen" aria-label="Лобби комнаты">
+      <header class="top-bar">
+        <div class="brand-wordmark">truskadurak</div>
+        <div class="theme-switcher" role="group" aria-label="Выбор темы">
+          <button type="button" class="theme-btn" data-theme-select="night-bar">Ночной бар</button>
+          <button type="button" class="theme-btn" data-theme-select="cyberpunk">Киберпанк</button>
+          <button type="button" class="theme-btn" data-theme-select="skype-2010">Skype 2010</button>
+        </div>
+        <div class="top-bar-actions">
+          <button type="button" id="btn-lobby-settings" class="btn btn--secondary">
+            Настройка и проверка связи
+          </button>
+          <button type="button" id="btn-leave-room" class="btn btn--ghost">Выйти</button>
+        </div>
+      </header>
+
+      <section class="lobby-container">
+        <div class="lobby-status-strip surface-card">
+          <div class="status-info">
+            <span class="meta-label">Комната PIN</span>
+            <strong id="lobby-pin-code" class="mono-num pin-code-value">----</strong>
+            <button type="button" id="btn-copy-pin" class="btn btn--ghost btn--sm">Копировать</button>
+            <span class="meta-sep" aria-hidden="true">·</span>
+            <span class="connection-state" id="lobby-conn-state" data-state="searching">
+              <span class="state-dot" aria-hidden="true"></span>
+              <span id="lobby-conn-text">Поиск друга</span>
+            </span>
+          </div>
+          <div class="status-actions">
+            <button type="button" id="btn-lobby-reconnect" class="btn btn--secondary btn--sm">
+              Переподключиться
+            </button>
+          </div>
+        </div>
+
+        <div class="lobby-grid">
+          <!-- Карточка текущего пользователя -->
+          <article class="participant-card surface-card" id="my-card">
+            <div class="participant-avatar" id="my-avatar" aria-hidden="true">🍺</div>
+            <div class="participant-body">
+              <div class="participant-meta">
+                <span id="my-role-label">Хост стола</span>
+                <span aria-hidden="true">·</span>
+                <span>Вы</span>
+              </div>
+              <h2 class="participant-name" id="my-name">—</h2>
+              <div class="ready-status">
+                <span class="ready-indicator" aria-hidden="true"></span>
+                <span>Готов бухать</span>
+              </div>
+            </div>
+            <div class="participant-footer">
+              <button type="button" id="btn-edit-profile" class="btn btn--ghost btn--sm">
+                Изменить профиль
+              </button>
+            </div>
+          </article>
+
+          <!-- Карточка собеседника -->
+          <article class="participant-card surface-card participant-card--friend" id="friend-card" data-connected="false">
+            <div class="participant-avatar" id="friend-avatar" aria-hidden="true">🍻</div>
+            <div class="participant-body">
+              <div class="participant-meta" id="friend-meta">Свободный стул</div>
+              <h2 class="participant-name" id="friend-name">Ждём собутыльника…</h2>
+              <div class="ready-status" id="friend-ready-status" hidden>
+                <span class="ready-indicator" aria-hidden="true"></span>
+                <span>Готов бухать</span>
+              </div>
+              <p class="muted-text" id="friend-waiting-hint">
+                Передайте другу 4-значный PIN-код — он подключится напрямую по P2P.
+              </p>
+            </div>
+            <div class="participant-footer">
+              <button type="button" id="btn-call-friend" class="btn btn--call" disabled>
+                Позвонить
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <!-- Быстрый чат в лобби (если друг подключен) -->
+        <section class="lobby-chat-preview surface-card" id="lobby-chat-box">
+          <div class="lobby-chat-header">
+            <h3 class="card-heading">Чат перед звонком</h3>
+            <div class="quick-toasts" id="lobby-quick-toasts"></div>
+          </div>
+          <div class="chat-messages chat-messages--compact" id="lobby-chat-messages" aria-live="polite">
+            <div class="chat-empty">Сообщения появятся здесь после подключения собеседника.</div>
+          </div>
+          <form class="chat-form" id="lobby-chat-form">
+            <input
+              type="text"
+              id="lobby-chat-input"
+              class="text-input"
+              placeholder="Написать другу..."
+              maxlength="400"
+              disabled
+            />
+            <button type="submit" id="lobby-chat-send" class="btn btn--primary" disabled>Отправить</button>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <!-- =========================================================
+         ЭКРАН 5: ВИДЕОЗВОНОК (SKYPE-STYLE FULLSCREEN)
+         ========================================================= -->
+    <main id="screen-call" class="screen screen--call" aria-label="Видеозвонок">
+      <div class="call-stage" id="call-stage">
+        <!-- Полноэкранное видео собутыльника -->
+        <video id="remote-video" class="remote-video" autoplay playsinline></video>
+
+        <!-- Заглушка, если видео друга ещё грузится или выключено -->
+        <div class="remote-placeholder" id="remote-placeholder">
+          <div class="remote-placeholder-avatar" id="remote-placeholder-avatar">🍺</div>
+          <div class="remote-placeholder-name" id="remote-placeholder-name">Собеседник</div>
+          <div class="muted-text" id="remote-placeholder-note">Подключаем видеопоток...</div>
+        </div>
+
+        <!-- Прозрачный слой для AR-игр (Муха, Бутылка, Кружки) -->
+        <canvas id="ar-canvas" class="ar-canvas"></canvas>
+
+        <!-- HUD мини-игры «Отбей бутылку» -->
+        <div class="bottle-hud desktop-only" id="bottle-hud" hidden>
+          <div class="bottle-hud-item">
+            <span class="meta-label">Отбей бутылку</span>
+            <span aria-hidden="true">·</span>
+            <span>Счёт: <strong id="bottle-score" class="mono-num">0</strong></span>
+          </div>
+          <button type="button" id="btn-stop-bottle-hud" class="btn btn--ghost btn--sm">Стоп</button>
+        </div>
+
+        <!-- Плашка «Штрафной глоток!» -->
+        <div class="penalty-banner" id="penalty-banner" hidden aria-live="assertive">
+          Штрафной глоток! 🍺
+        </div>
+
+        <!-- Верхняя полоса информации о звонке -->
+        <div class="call-top-bar">
+          <div class="call-peer-info">
+            <span class="call-peer-avatar" id="call-peer-avatar">🍺</span>
+            <div class="call-peer-details">
+              <span class="call-peer-name" id="call-peer-name">Собеседник</span>
+              <div class="call-peer-meta">
+                <span class="connection-state" id="call-conn-state" data-state="connected">
+                  <span class="state-dot" aria-hidden="true"></span>
+                  <span id="call-conn-text">В эфире</span>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span id="call-timer" class="mono-num">00:00</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="call-top-actions">
+            <button type="button" id="btn-call-reconnect" class="btn btn--glass btn--sm">
+              Переподключиться
+            </button>
+          </div>
+        </div>
+
+        <!-- Перетаскиваемое окно своего видео (PiP) -->
+        <div class="local-pip" id="local-pip" title="Перетащите окно мышкой">
+          <video id="local-video" class="local-video" autoplay playsinline muted></video>
+          <div class="local-pip-off" id="local-pip-off" hidden>
+            <span id="local-pip-avatar">🍺</span>
+            <span>Камера выкл.</span>
+          </div>
+          <div class="local-pip-label">Вы</div>
+        </div>
+
+        <!-- Поповер меню «Приколы / Игры» (только ПК) -->
+        <div class="games-popover surface-card desktop-only" id="games-popover" hidden>
+          <div class="games-popover-header">
+            <span class="card-heading">Приколы и AR-игры</span>
+            <button type="button" id="btn-close-games" class="icon-close" aria-label="Закрыть меню игр">×</button>
+          </div>
+          <div class="games-list">
+            <div class="game-item">
+              <div class="game-item-info">
+                <strong>Запустить муху другу</strong>
+                <span class="muted-text" id="fly-turn-status">Ваш ход — отправьте муху!</span>
+              </div>
+              <button type="button" id="btn-launch-fly" class="btn btn--primary btn--sm">Запустить</button>
+            </div>
+
+            <div class="game-item">
+              <div class="game-item-info">
+                <strong>Отбей бутылку (AR)</strong>
+                <span class="muted-text">Машите рукой перед камерой, чтобы отбить бутылку</span>
+              </div>
+              <button type="button" id="btn-toggle-bottle" class="btn btn--secondary btn--sm">Начать</button>
+            </div>
+
+            <div class="game-item">
+              <div class="game-item-info">
+                <strong>Чокнуться</strong>
+                <span class="muted-text">Синхронный звон кружек у обоих</span>
+              </div>
+              <button type="button" id="btn-cheers" class="btn btn--primary btn--sm">Чокнуться 🍻</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Нижняя панель управления звонком -->
+        <nav class="call-dock" id="call-dock" aria-label="Управление звонком">
+          <button type="button" id="btn-toggle-mic" class="dock-btn" data-active="true" title="Микрофон">
+            <span class="dock-icon" aria-hidden="true">🎤</span>
+            <span class="dock-label">Микрофон</span>
+          </button>
+
+          <button type="button" id="btn-toggle-cam" class="dock-btn" data-active="true" title="Камера">
+            <span class="dock-icon" aria-hidden="true">📹</span>
+            <span class="dock-label">Камера</span>
+          </button>
+
+          <button type="button" id="btn-call-settings" class="dock-btn" title="Настройка и фон">
+            <span class="dock-icon" aria-hidden="true">⚙️</span>
+            <span class="dock-label">Фон и звук</span>
+          </button>
+
+          <button type="button" id="btn-toggle-games" class="dock-btn desktop-only" title="Приколы и AR-игры">
+            <span class="dock-icon" aria-hidden="true">🎮</span>
+            <span class="dock-label">Приколы / Игры</span>
+          </button>
+
+          <button type="button" id="btn-toggle-chat" class="dock-btn" title="Текстовый чат">
+            <span class="dock-icon" aria-hidden="true">💬</span>
+            <span class="dock-label">Чат</span>
+            <span class="unread-badge" id="chat-unread-badge" hidden>0</span>
+          </button>
+
+          <button type="button" id="btn-hangup" class="dock-btn dock-btn--hangup" title="Завершить звонок">
+            <span class="dock-icon" aria-hidden="true">📞</span>
+            <span class="dock-label">Сбросить</span>
+          </button>
+        </nav>
+
+        <!-- Выдвижная боковая панель текстового чата -->
+        <aside class="chat-drawer surface-card" id="chat-drawer" aria-label="Текстовый чат" aria-hidden="true">
+          <div class="chat-drawer-header">
+            <h2 class="card-heading">Чат за столом</h2>
+            <button type="button" id="btn-close-chat" class="icon-close" aria-label="Закрыть чат">×</button>
+          </div>
+          <div class="chat-messages" id="call-chat-messages" aria-live="polite">
+            <div class="chat-empty">Напишите тост или сообщение — доставится мгновенно по P2P.</div>
+          </div>
+          <div class="quick-toasts quick-toasts--drawer" id="call-quick-toasts"></div>
+          <form class="chat-form" id="call-chat-form">
+            <input
+              type="text"
+              id="call-chat-input"
+              class="text-input"
+              placeholder="Сообщение..."
+              maxlength="400"
+            />
+            <button type="submit" class="btn btn--primary">Отправить</button>
+          </form>
+        </aside>
+      </div>
+    </main>
+
+    <!-- =========================================================
+         ОВЕРЛЕЙ: ИСХОДЯЩИЙ ВЫЗОВ (SKYPE-STYLE)
+         ========================================================= -->
+    <div id="overlay-outgoing" class="call-overlay" hidden role="dialog" aria-modal="true" aria-label="Исходящий вызов">
+      <div class="call-modal surface-card">
+        <div class="pulse-ring-wrap">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring pulse-ring--delay"></div>
+          <div class="call-modal-avatar" id="outgoing-avatar">🍺</div>
+        </div>
+        <h2 class="section-title" id="outgoing-name">Друг</h2>
+        <p class="muted-text">Вызов собеседника…</p>
+        <div class="call-modal-actions">
+          <button type="button" id="btn-cancel-call" class="btn btn--danger">Отменить вызов</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         ОВЕРЛЕЙ: ВХОДЯЩИЙ ВЫЗОВ (SKYPE-STYLE + GLITCH В КИБЕРПАНКЕ)
+         ========================================================= -->
+    <div id="overlay-incoming" class="call-overlay" hidden role="dialog" aria-modal="true" aria-label="Входящий вызов">
+      <div class="call-modal surface-card incoming-call-card">
+        <div class="pulse-ring-wrap">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring pulse-ring--delay"></div>
+          <div class="call-modal-avatar" id="incoming-avatar">🍺</div>
+        </div>
+        <h2 class="section-title glitch-text" id="incoming-name" data-text="Друг">Друг</h2>
+        <p class="muted-text">Зовёт за стол — входящий видеозвонок!</p>
+        <div class="call-modal-actions">
+          <button type="button" id="btn-accept-call" class="btn btn--call">Ответить</button>
+          <button type="button" id="btn-reject-call" class="btn btn--danger">Сбросить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         МОДАЛЬНОЕ ОКНО: НАСТРОЙКА И ПРОВЕРКА СВЯЗИ + ФОН + TURN
+         ========================================================= -->
+    <div id="modal-settings" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-label="Настройка и проверка связи">
+      <div class="settings-modal surface-card">
+        <header class="modal-header">
+          <h2 class="section-title">Настройка и проверка связи</h2>
+          <button type="button" id="btn-close-settings" class="icon-close" aria-label="Закрыть настройки">×</button>
+        </header>
+
+        <div class="settings-body">
+          <!-- Левая колонка: Предпросмотр видео и уровень микрофона -->
+          <div class="settings-preview-col">
+            <div class="preview-frame">
+              <video id="settings-preview-video" autoplay playsinline muted></video>
+              <div class="preview-fallback" id="settings-preview-fallback">
+                Нажмите «Включить предпросмотр», чтобы проверить камеру и фон
+              </div>
+              <div class="preview-badge" id="vision-status-label">Камера: оригинал</div>
+            </div>
+
+            <div class="mic-check-box">
+              <div class="mic-check-header">
+                <span class="field-label">Уровень микрофона</span>
+                <button type="button" id="btn-test-sound" class="btn btn--secondary btn--sm">
+                  Тестовый звук 🔊
+                </button>
+              </div>
+              <div class="mic-meter" id="mic-meter" aria-label="Индикатор громкости микрофона">
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+                <div class="mic-meter-bar"></div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <span class="field-label">Тема оформления</span>
+              <div class="theme-switcher theme-switcher--inline" role="group" aria-label="Выбор темы">
+                <button type="button" class="theme-btn" data-theme-select="night-bar">Ночной бар</button>
+                <button type="button" class="theme-btn" data-theme-select="cyberpunk">Киберпанк</button>
+                <button type="button" class="theme-btn" data-theme-select="skype-2010">Skype 2010</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Правая колонка: Устройства, Фон (MediaPipe), TURN -->
+          <div class="settings-controls-col">
+            <div class="settings-section">
+              <h3 class="card-heading">Камера и микрофон</h3>
+              <div class="field-group">
+                <label for="select-camera" class="field-label">Камера</label>
+                <select id="select-camera" class="select-input"></select>
+              </div>
+              <div class="field-group">
+                <label for="select-mic" class="field-label">Микрофон</label>
+                <select id="select-mic" class="select-input"></select>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <h3 class="card-heading">Эффекты фона (MediaPipe)</h3>
+              <div class="segmented-control" id="bg-mode-selector" role="group" aria-label="Режим фона">
+                <button type="button" class="seg-btn seg-btn--active" data-bg-mode="none">Без эффектов</button>
+                <button type="button" class="seg-btn" data-bg-mode="blur">Размытие</button>
+                <button type="button" class="seg-btn" data-bg-mode="virtual">Виртуальный фон</button>
+              </div>
+
+              <div class="field-group" id="blur-control-group" hidden>
+                <label for="blur-strength-slider" class="field-label">
+                  Сила размытия: <strong id="blur-strength-val" class="mono-num">14px</strong>
+                </label>
+                <input
+                  id="blur-strength-slider"
+                  type="range"
+                  min="4"
+                  max="28"
+                  step="1"
+                  value="14"
+                  class="range-input"
+                />
+              </div>
+
+              <div class="field-group" id="virtual-bg-group" hidden>
+                <span class="field-label">Встроенные фоны</span>
+                <div class="bg-presets" id="bg-presets">
+                  <button type="button" class="preset-btn preset-btn--active" data-bg-preset="pub">Уютный паб</button>
+                  <button type="button" class="preset-btn" data-bg-preset="cyberbar">Кибер-бар</button>
+                  <button type="button" class="preset-btn" data-bg-preset="banya">Баня с вениками</button>
+                  <button type="button" class="preset-btn" data-bg-preset="beach">Ночной пляж</button>
+                </div>
+                <label class="btn btn--secondary btn--sm upload-bg-btn">
+                  Загрузить свою картинку
+                  <input type="file" id="bg-upload-input" accept="image/*" hidden />
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <h3 class="card-heading">Кастомный TURN-сервер (опционально)</h3>
+              <p class="muted-text small-text">
+                Google STUN уже подключены. Укажите TURN, если провайдер блокирует прямой P2P.
+              </p>
+              <div class="field-group">
+                <label for="turn-url-input" class="field-label">TURN URL</label>
+                <input
+                  id="turn-url-input"
+                  type="text"
+                  class="text-input"
+                  placeholder="turn:relay.example.com:3478"
+                />
+              </div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label for="turn-user-input" class="field-label">Username</label>
+                  <input id="turn-user-input" type="text" class="text-input" placeholder="логин" />
+                </div>
+                <div class="field-group">
+                  <label for="turn-cred-input" class="field-label">Credential</label>
+                  <input id="turn-cred-input" type="password" class="text-input" placeholder="пароль" />
+                </div>
+              </div>
+              <div class="turn-actions">
+                <button type="button" id="btn-save-turn" class="btn btn--primary btn--sm">Сохранить TURN</button>
+                <button type="button" id="btn-clear-turn" class="btn btn--ghost btn--sm">Сбросить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" id="btn-done-settings" class="btn btn--primary">Готово</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Всплывающие уведомления -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- Скрытые технические элементы для обработки видео -->
+    <video id="raw-camera-video" playsinline muted hidden></video>
+    <canvas id="vision-output-canvas" width="640" height="480" hidden></canvas>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

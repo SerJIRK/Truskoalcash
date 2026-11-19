@@ -1,0 +1,11 @@
+{
+  "name": "truskadurak",
+  "description": "Приватный P2P видеочат строго для двух человек для совместных посиделок онлайн с пивным PIN-ящиком, виртуальными фонами и AR-играми.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
